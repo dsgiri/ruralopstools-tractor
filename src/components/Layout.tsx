@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Tractor, Wrench, Droplet, LayoutDashboard, Menu, Tally3, Settings as SettingsIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { GDPRNotice } from './GDPRNotice';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -81,6 +82,7 @@ export function Layout() {
           &copy; {new Date().getFullYear()} RuralOpsTools. Practical, minimal equipment logging.
         </div>
       </footer>
+      <GDPRNotice />
     </div>
   );
 }
