@@ -1,0 +1,6 @@
+{
+  "name": "Tractor",
+  "description": "RuralOpsTools subdomain for fleet maintenance logging, diesel consumption tracking, and field implement optimization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
