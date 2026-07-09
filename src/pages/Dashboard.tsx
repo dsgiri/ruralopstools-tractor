@@ -10,15 +10,34 @@ export default function Dashboard() {
 
   // Simple stats
   const totalEquipment = equipment.length;
-  const totalMaintenanceCost = maintenance.reduce((sum, m) => sum + m.partsCost + m.laborCost, 0);
-  const totalFuelCost = fuel.reduce((sum, f) => sum + f.fuelCost, 0);
+  const totalMaintenanceCost = maintenance.reduce((sum, m) => sum + (m.totalCost !== undefined ? m.totalCost : m.partsCost + m.laborCost), 0);
+  const totalFuelCost = fuel.reduce((sum, f) => sum + (f.totalCost !== undefined ? f.totalCost : f.fuelCost), 0);
   
-  // Needs service logic (mock logic: every 250 hours or so)
-  const needsService = equipment.filter(e => {
+  // Needs service logic (hours-based)
+  // Flag equipment in "Needs Attention" when within a threshold (e.g. 10 hours) of its next service interval
+  const needsService = equipment.map(e => {
+    const interval = e.serviceIntervalHours || 100; // default 100 hours if not set
     const lastService = maintenance.filter(m => m.equipmentId === e.id).sort((a,b) => b.hours - a.hours)[0];
-    if (!lastService) return e.currentHours > 50; // no service and >50 hours
-    return (e.currentHours - lastService.hours) > 200;
-  });
+    
+    // If never serviced, we assume service is due if current hours >= interval
+    let hoursSinceLast = e.currentHours; 
+    let nextServiceHour = interval;
+
+    if (lastService) {
+      hoursSinceLast = e.currentHours - lastService.hours;
+      nextServiceHour = lastService.hours + interval;
+    }
+
+    const hoursUntilService = nextServiceHour - e.currentHours;
+    
+    return {
+      ...e,
+      hoursSinceLast,
+      nextServiceHour,
+      hoursUntilService,
+      isDue: hoursUntilService <= 10
+    };
+  }).filter(e => e.isDue);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -65,14 +84,16 @@ export default function Dashboard() {
                 <thead className="bg-slate-50 text-[10px] uppercase text-slate-400">
                   <tr>
                     <th className="px-5 py-3 font-semibold">Machine</th>
-                    <th className="px-5 py-3 font-semibold text-right">Hours Logged</th>
+                    <th className="px-5 py-3 font-semibold text-right">Service Due</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm divide-y divide-slate-100">
                   {needsService.map(e => (
                     <tr key={e.id}>
                       <td className="px-5 py-3 font-semibold text-amber-700">{e.name}</td>
-                      <td className="px-5 py-3 text-right font-mono text-amber-700">{e.currentHours}</td>
+                      <td className="px-5 py-3 text-right font-mono text-amber-700">
+                        {e.hoursUntilService <= 0 ? 'OVERDUE' : `In ${e.hoursUntilService.toFixed(1)} hrs`}
+                      </td>
                     </tr>
                   ))}
                   {needsService.length === 0 && (

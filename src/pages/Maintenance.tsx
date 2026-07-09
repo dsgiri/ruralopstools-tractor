@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input, Label, Select, Textarea } from '../components/Input';
 import { formatCurrency } from '../lib/utils';
 import { Plus, Trash2 } from 'lucide-react';
+import { trackEvent } from '../lib/analytics';
 
 export default function Maintenance() {
   const { maintenance, equipment, addMaintenance, deleteMaintenance } = useAppContext();
   const [showForm, setShowForm] = useState(false);
+  const [parts, setParts] = useState(0);
+  const [labor, setLabor] = useState(0);
+  const [total, setTotal] = useState(0);
+
+  // Auto-sum unless total is manually modified
+  useEffect(() => {
+    setTotal(parts + labor);
+  }, [parts, labor]);
 
   // Sort descending by date
   const sortedMaintenance = [...maintenance].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -42,11 +51,16 @@ export default function Maintenance() {
                 hours: parseFloat(fd.get('hours') as string) || 0,
                 partsCost: parseFloat(fd.get('partsCost') as string) || 0,
                 laborCost: parseFloat(fd.get('laborCost') as string) || 0,
+                totalCost: parseFloat(fd.get('totalCost') as string) || 0,
                 notes: fd.get('notes') as string,
               });
+              trackEvent('maintenance_logged');
               setShowForm(false);
+              setParts(0);
+              setLabor(0);
+              setTotal(0);
             }} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="date">Date</Label>
                   <Input id="date" name="date" type="date" required defaultValue={new Date().toISOString().split('T')[0]} />
@@ -70,11 +84,15 @@ export default function Maintenance() {
                 </div>
                 <div>
                   <Label htmlFor="partsCost">Parts Cost ($)</Label>
-                  <Input id="partsCost" name="partsCost" type="number" step="0.01" />
+                  <Input id="partsCost" name="partsCost" type="number" step="0.01" value={parts || ''} onChange={e => setParts(parseFloat(e.target.value) || 0)} />
                 </div>
                 <div>
                   <Label htmlFor="laborCost">Labor Cost ($)</Label>
-                  <Input id="laborCost" name="laborCost" type="number" step="0.01" />
+                  <Input id="laborCost" name="laborCost" type="number" step="0.01" value={labor || ''} onChange={e => setLabor(parseFloat(e.target.value) || 0)} />
+                </div>
+                <div>
+                  <Label htmlFor="totalCost">Total Cost ($) (Auto-summed)</Label>
+                  <Input id="totalCost" name="totalCost" type="number" step="0.01" value={total || ''} onChange={e => setTotal(parseFloat(e.target.value) || 0)} required />
                 </div>
               </div>
               <div>
@@ -113,7 +131,7 @@ export default function Maintenance() {
                       <td className="px-6 py-4 font-semibold text-slate-800">{eq?.name || 'Unknown'}</td>
                       <td className="px-6 py-4 text-slate-600">{m.serviceType}</td>
                       <td className="px-6 py-4 font-mono text-slate-500">{m.hours}</td>
-                      <td className="px-6 py-4 font-mono text-right font-medium">{formatCurrency(m.partsCost + m.laborCost)}</td>
+                      <td className="px-6 py-4 font-mono text-right font-medium">{formatCurrency(m.totalCost !== undefined ? m.totalCost : (m.partsCost + m.laborCost))}</td>
                       <td className="px-6 py-4 text-right">
                         <button onClick={() => deleteMaintenance(m.id)} className="text-slate-400 hover:text-red-600">
                           <Trash2 className="w-4 h-4" />

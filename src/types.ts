@@ -11,6 +11,14 @@ export interface Equipment {
   currentHours: number;
   notes: string;
   photoUrl?: string;
+  
+  // New fields for cost calculations
+  purchasePrice: number;
+  purchaseDate?: string;
+  horsepower?: number;
+  expectedLifeHours: number;
+  salvageValuePercent: number; // e.g., 20 for 20%
+  serviceIntervalHours?: number; // e.g., 100
 }
 
 export interface MaintenanceRecord {
@@ -21,6 +29,7 @@ export interface MaintenanceRecord {
   hours: number;
   partsCost: number;
   laborCost: number;
+  totalCost: number; // Usually partsCost + laborCost, but allow override
   notes: string;
 }
 
@@ -28,8 +37,9 @@ export interface FuelRecord {
   id: string;
   equipmentId: string;
   date: string;
-  fuelAmount: number;
-  fuelCost: number;
+  gallons: number; // fuelAmount
+  pricePerGallon: number;
+  totalCost: number; // gallons * pricePerGallon
   hours: number;
   task: string;
   notes: string;
@@ -37,11 +47,13 @@ export interface FuelRecord {
 
 export interface ImplementComparison {
   id: string;
-  tractorId: string;
-  implementName: string;
+  name: string; // Used to be implementName
+  purchasePrice: number;
+  expectedLifeHours: number;
+  salvageValuePercent: number;
   widthFt: number;
-  fieldSizeAcres: number;
-  groundSpeedMph: number;
-  ptoUsage: boolean;
-  fuelRateGph: number;
+  fieldSizeAcres?: number;
+  groundSpeedMph?: number;
+  ptoUsage?: boolean;
+  fuelRateGph?: number;
 }

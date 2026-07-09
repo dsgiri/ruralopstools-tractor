@@ -14,6 +14,7 @@ import Maintenance from './pages/Maintenance';
 import Fuel from './pages/Fuel';
 import Implements from './pages/Implements';
 import Settings from './pages/Settings';
+import Guide from './pages/Guide';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="maintenance" element={<Maintenance />} />
             <Route path="fuel" element={<Fuel />} />
             <Route path="implements" element={<Implements />} />
+            <Route path="guide" element={<Guide />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

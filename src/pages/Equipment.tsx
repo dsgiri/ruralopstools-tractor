@@ -1,14 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input, Label, Select, Textarea } from '../components/Input';
 import { Plus, Tractor, Trash2 } from 'lucide-react';
 import { EquipmentType } from '../types';
+import { calculateCostPerHour } from '../lib/calculations';
+import { trackEvent } from '../lib/analytics';
 
 export default function Equipment() {
-  const { equipment, addEquipment, deleteEquipment } = useAppContext();
+  const { equipment, maintenance, fuel, addEquipment, deleteEquipment } = useAppContext();
   const [showForm, setShowForm] = useState(false);
+
+  // Track viewing cost per hour
+  useEffect(() => {
+    if (equipment.length > 0) {
+      trackEvent('cost_per_hour_viewed');
+      
+      const hasActuals = equipment.some(eq => !calculateCostPerHour(eq, maintenance, fuel).isEstimated);
+      if (hasActuals) {
+        trackEvent('estimate_to_actual_transition');
+      }
+    }
+  }, [equipment, maintenance, fuel]);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -41,10 +55,17 @@ export default function Equipment() {
                 serialNumber: fd.get('serialNumber') as string,
                 currentHours: parseFloat(fd.get('currentHours') as string) || 0,
                 notes: fd.get('notes') as string,
+                purchasePrice: parseFloat(fd.get('purchasePrice') as string) || 0,
+                purchaseDate: fd.get('purchaseDate') as string,
+                horsepower: fd.get('horsepower') ? parseFloat(fd.get('horsepower') as string) : undefined,
+                expectedLifeHours: parseFloat(fd.get('expectedLifeHours') as string) || 12000,
+                salvageValuePercent: parseFloat(fd.get('salvageValuePercent') as string) || 20,
+                serviceIntervalHours: fd.get('serviceIntervalHours') ? parseFloat(fd.get('serviceIntervalHours') as string) : undefined,
               });
+              trackEvent('equipment_added', { type: fd.get('type') as string });
               setShowForm(false);
             }} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="name">Machine Name (e.g. Big Green)</Label>
                   <Input id="name" name="name" required />
@@ -79,6 +100,30 @@ export default function Equipment() {
                   <Label htmlFor="currentHours">Current Hours / Miles</Label>
                   <Input id="currentHours" name="currentHours" type="number" step="0.1" required />
                 </div>
+                <div>
+                  <Label htmlFor="purchasePrice">Purchase Price ($)</Label>
+                  <Input id="purchasePrice" name="purchasePrice" type="number" step="0.01" />
+                </div>
+                <div>
+                  <Label htmlFor="purchaseDate">Purchase Date</Label>
+                  <Input id="purchaseDate" name="purchaseDate" type="date" />
+                </div>
+                <div>
+                  <Label htmlFor="horsepower">Horsepower (PTO)</Label>
+                  <Input id="horsepower" name="horsepower" type="number" step="0.1" placeholder="For fuel estimate" />
+                </div>
+                <div>
+                  <Label htmlFor="expectedLifeHours">Expected Life (Hours)</Label>
+                  <Input id="expectedLifeHours" name="expectedLifeHours" type="number" step="1" defaultValue="12000" />
+                </div>
+                <div>
+                  <Label htmlFor="salvageValuePercent">Salvage Value %</Label>
+                  <Input id="salvageValuePercent" name="salvageValuePercent" type="number" step="1" defaultValue="20" placeholder="e.g. 20" />
+                </div>
+                <div>
+                  <Label htmlFor="serviceIntervalHours">Service Interval (Hours)</Label>
+                  <Input id="serviceIntervalHours" name="serviceIntervalHours" type="number" step="1" placeholder="e.g. 100" />
+                </div>
               </div>
               <div>
                 <Label htmlFor="notes">Notes</Label>
@@ -94,7 +139,9 @@ export default function Equipment() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {equipment.map(eq => (
+        {equipment.map(eq => {
+          const costData = calculateCostPerHour(eq, maintenance, fuel);
+          return (
           <Card key={eq.id}>
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
@@ -110,25 +157,38 @@ export default function Equipment() {
                 </button>
               </div>
               
-              <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hours</span>
-                  <span className="font-mono text-slate-700">{eq.currentHours}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</span>
-                  <span className="font-medium text-slate-700">{eq.type}</span>
-                </div>
-                {eq.serialNumber && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SN</span>
-                    <span className="font-mono text-xs text-slate-500">{eq.serialNumber}</span>
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex flex-col items-center justify-center py-4 bg-slate-50 rounded-lg mb-4">
+                  <span className="text-3xl font-black text-slate-800 tracking-tight">
+                    ${(costData.isEstimated ? costData.estimated : costData.actual!)?.toFixed(2)}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Cost Per Hour</span>
+                  <div className={`mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest ${costData.isEstimated ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    {costData.isEstimated ? 'Estimated' : 'Based on logged data'}
                   </div>
-                )}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hours</span>
+                    <span className="font-mono text-slate-700">{eq.currentHours}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</span>
+                    <span className="font-medium text-slate-700">{eq.type}</span>
+                  </div>
+                  {eq.serialNumber && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SN</span>
+                      <span className="font-mono text-xs text-slate-500">{eq.serialNumber}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
         {equipment.length === 0 && !showForm && (
           <div className="col-span-full py-12 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300 text-sm">
             No equipment added yet. Click "Add Equipment" to get started.

@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input, Label, Select, Textarea } from '../components/Input';
 import { formatCurrency, formatNumber } from '../lib/utils';
 import { Plus, Trash2 } from 'lucide-react';
+import { trackEvent } from '../lib/analytics';
 
 export default function Fuel() {
   const { fuel, equipment, addFuel, deleteFuel } = useAppContext();
   const [showForm, setShowForm] = useState(false);
+  const [gallons, setGallons] = useState(0);
+  const [price, setPrice] = useState(0);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    setTotal(gallons * price);
+  }, [gallons, price]);
 
   const sortedFuel = [...fuel].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -37,15 +45,20 @@ export default function Fuel() {
               addFuel({
                 equipmentId: fd.get('equipmentId') as string,
                 date: fd.get('date') as string,
-                fuelAmount: parseFloat(fd.get('fuelAmount') as string) || 0,
-                fuelCost: parseFloat(fd.get('fuelCost') as string) || 0,
+                gallons: parseFloat(fd.get('gallons') as string) || 0,
+                pricePerGallon: parseFloat(fd.get('pricePerGallon') as string) || 0,
+                totalCost: parseFloat(fd.get('totalCost') as string) || 0,
                 hours: parseFloat(fd.get('hours') as string) || 0,
                 task: fd.get('task') as string,
                 notes: fd.get('notes') as string,
               });
+              trackEvent('fuel_logged');
               setShowForm(false);
+              setGallons(0);
+              setPrice(0);
+              setTotal(0);
             }} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="date">Date</Label>
                   <Input id="date" name="date" type="date" required defaultValue={new Date().toISOString().split('T')[0]} />
@@ -60,12 +73,16 @@ export default function Fuel() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="fuelAmount">Gallons Filled</Label>
-                  <Input id="fuelAmount" name="fuelAmount" type="number" step="0.1" required />
+                  <Label htmlFor="gallons">Gallons Filled</Label>
+                  <Input id="gallons" name="gallons" type="number" step="0.1" required value={gallons || ''} onChange={e => setGallons(parseFloat(e.target.value) || 0)} />
                 </div>
                 <div>
-                  <Label htmlFor="fuelCost">Total Cost ($)</Label>
-                  <Input id="fuelCost" name="fuelCost" type="number" step="0.01" />
+                  <Label htmlFor="pricePerGallon">Price / Gallon ($)</Label>
+                  <Input id="pricePerGallon" name="pricePerGallon" type="number" step="0.01" required value={price || ''} onChange={e => setPrice(parseFloat(e.target.value) || 0)} />
+                </div>
+                <div>
+                  <Label htmlFor="totalCost">Total Cost ($)</Label>
+                  <Input id="totalCost" name="totalCost" type="number" step="0.01" value={total || ''} onChange={e => setTotal(parseFloat(e.target.value) || 0)} required />
                 </div>
                 <div>
                   <Label htmlFor="hours">Hour Meter</Label>
@@ -94,7 +111,8 @@ export default function Fuel() {
                   <th className="px-6 py-3 font-semibold">Date</th>
                   <th className="px-6 py-3 font-semibold">Equipment</th>
                   <th className="px-6 py-3 font-semibold">Gallons</th>
-                  <th className="px-6 py-3 font-semibold">Cost</th>
+                  <th className="px-6 py-3 font-semibold">Price/Gal</th>
+                  <th className="px-6 py-3 font-semibold">Total Cost</th>
                   <th className="px-6 py-3 font-semibold">Task</th>
                   <th className="px-6 py-3 text-right"></th>
                 </tr>
@@ -106,8 +124,9 @@ export default function Fuel() {
                     <tr key={f.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-slate-500 font-mono text-xs">{new Date(f.date).toLocaleDateString()}</td>
                       <td className="px-6 py-4 font-semibold text-slate-800">{eq?.name || 'Unknown'}</td>
-                      <td className="px-6 py-4 font-mono text-slate-700">{f.fuelAmount}</td>
-                      <td className="px-6 py-4 font-mono text-slate-700">{formatCurrency(f.fuelCost)}</td>
+                      <td className="px-6 py-4 font-mono text-slate-700">{f.gallons || f.fuelAmount}</td>
+                      <td className="px-6 py-4 font-mono text-slate-700">{formatCurrency(f.pricePerGallon || 0)}</td>
+                      <td className="px-6 py-4 font-mono text-slate-700">{formatCurrency(f.totalCost || f.fuelCost)}</td>
                       <td className="px-6 py-4 text-slate-500">{f.task || '-'}</td>
                       <td className="px-6 py-4 text-right">
                         <button onClick={() => deleteFuel(f.id)} className="text-slate-400 hover:text-red-600">
@@ -119,7 +138,7 @@ export default function Fuel() {
                 })}
                 {fuel.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">
+                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500 text-sm">
                       No fuel records found.
                     </td>
                   </tr>

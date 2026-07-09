@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Tractor, Wrench, Droplet, LayoutDashboard, Menu, Tally3, Settings as SettingsIcon } from 'lucide-react';
+import { Tractor, Wrench, Droplet, LayoutDashboard, Menu, Tally3, Settings as SettingsIcon, BookOpen } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { GDPRNotice } from './GDPRNotice';
 
@@ -10,6 +10,7 @@ const navigation = [
   { name: 'Maintenance', href: '/maintenance', icon: Wrench },
   { name: 'Fuel Log', href: '/fuel', icon: Droplet },
   { name: 'Implements', href: '/implements', icon: Tally3 },
+  { name: 'Guide', href: '/guide', icon: BookOpen },
   { name: 'Settings', href: '/settings', icon: SettingsIcon },
 ];
 
